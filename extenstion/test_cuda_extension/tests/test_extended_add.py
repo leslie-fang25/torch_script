@@ -213,28 +213,28 @@ def test_extended_attention_cute():
 
 def test_extended_add_one_tma():
     dtype = torch.int32
-    q_size = [3, 1024]
+    # q_size = [2048, 2048]
+    q_size = [2048, 512]
 
-    input = torch.rand(*q_size, dtype=torch.float32, device="cuda").to(dtype)
-    # input = torch.randint(*q_size, dtype=dtype, device="cuda")
+    for api in [0, 1, 2,]:
+        input = torch.rand(*q_size, dtype=torch.float32, device="cuda") * 100
+        input = input.to(dtype)
+        # print(input.to(device="cpu"), flush=True)
 
-    ref_res = input + torch.ones_like(input)
+        ref_res = input + torch.ones_like(input)
 
-    print("---- start the extend kernel run ----", flush=True)
-    res = torch.ops.torch_cuda_extension.extended_add_one_tma(
-        input,
-    )
-
-    # print(ref_res.to(device="cpu"), flush=True)
-    
-    # print(input.to(device="cpu"), flush=True)
-    # print(res.to(device="cpu"), flush=True)
-    
-    torch.testing.assert_allclose(res.to(device="cpu"), ref_res.to(device="cpu"), atol=1e-2, rtol=1e-1)
-    accuracy_check = torch.allclose(res.to(device="cpu"), ref_res.to(device="cpu"), atol=1e-2, rtol=1e-1)
-    print("torch.allclose(res, ref_res) is: {}".format(accuracy_check), flush=True)
-    assert accuracy_check, "accuracy failed to check"
-    print("---- Done test_extended_add_one_tma ----", flush=True)
+        res = torch.ops.torch_cuda_extension.extended_add_one_tma(
+            input,
+            api,
+        )        
+        # print(input.to(device="cpu"), flush=True)
+        # print(res.to(device="cpu"), flush=True)
+        
+        torch.testing.assert_allclose(res.to(device="cpu"), ref_res.to(device="cpu"), atol=1e-2, rtol=1e-1)
+        accuracy_check = torch.allclose(res.to(device="cpu"), ref_res.to(device="cpu"), atol=1e-2, rtol=1e-1)
+        print("torch.allclose(res, ref_res) is: {}".format(accuracy_check), flush=True)
+        assert accuracy_check, "accuracy failed to check"
+        print("---- Done test_extended_add_one_tma ----", flush=True)
 
 if __name__ == "__main__":
     # TODO<leslie> support pytest

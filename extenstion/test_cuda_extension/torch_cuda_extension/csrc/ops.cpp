@@ -53,9 +53,20 @@ Tensor extended_attention(
 }
 
 Tensor extended_add_one_tma(
-  Tensor input) {
+  Tensor input,
+  int64_t api_level = 0) {
   Tensor output = at::empty_like(input);
-  extended_add_one_tma_kernel(input, output);
+  if (api_level == 0) {
+    // 1D CUDA
+    extended_add_one_tma_kernel(input, output);
+  } else if (api_level == 1) {
+    // 2D CUDA
+    extended_add_one_tma_2d_kernel(input, output);
+    // return input;
+  } else {
+    // cute
+    extended_add_tma_cute_kernel(input, output);
+  }
   return output;
 }
 

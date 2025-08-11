@@ -32,6 +32,7 @@ def get_extensions():
             "-O3" if not debug_mode else "-O0",
             "-t=0",
             "-std=c++17",
+            # "-arch=compute_90",
         ],
     }
     # extra_compile_args = ["-std=c++11"]

@@ -4,6 +4,7 @@
 #include "kernel/cuda/extended_add.h"
 #include "kernel/cuda/extended_gemm.h"
 #include "kernel/cuda/extended_attention.h"
+#include "kernel/cuda/extended_tma.h"
 
 namespace at {
 namespace native {
@@ -51,10 +52,18 @@ Tensor extended_attention(
   return out;
 }
 
+Tensor extended_add_one_tma(
+  Tensor input) {
+  Tensor output = at::empty_like(input);
+  extended_add_one_tma_kernel(input, output);
+  return output;
+}
+
 TORCH_LIBRARY_IMPL(torch_cuda_extension, CUDA, m) {
   m.impl(TORCH_SELECTIVE_NAME("extended_add"), TORCH_FN(extended_add));
   m.impl(TORCH_SELECTIVE_NAME("extended_gemm"), TORCH_FN(extended_gemm));
   m.impl(TORCH_SELECTIVE_NAME("extended_attention"), TORCH_FN(extended_attention));
+  m.impl(TORCH_SELECTIVE_NAME("extended_add_one_tma"), TORCH_FN(extended_add_one_tma));
 }
 
 } // namespace native

@@ -326,7 +326,9 @@ __forceinline__ __device__ auto _convert_type(cute::Tensor<Engine, Layout> const
 template <int N>
 CUTE_HOST_DEVICE
 void _cp_async_wait() {
+#if __CUDA_ARCH__ >= 800
   asm volatile("cp.async.wait_group %0;\n" :: "n"(N));
+#endif
 }
 
 template<bool A_in_regs=false, bool B_in_regs=false, typename Tensor0, typename Tensor1,

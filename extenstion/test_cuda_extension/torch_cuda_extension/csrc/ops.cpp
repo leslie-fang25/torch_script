@@ -1,6 +1,8 @@
 #include <ATen/AccumulateType.h>
 #include <torch/library.h>
-#include <ATen/functorch/BatchRulesHelper.h>
+// #include <ATen/functorch/BatchRulesHelper.h>
+#include <ATen/ATen.h>
+#include <ATen/Operators.h>
 #include "kernel/cuda/extended_add.h"
 #include "kernel/cuda/extended_gemm.h"
 #include "kernel/cuda/extended_attention.h"

@@ -9,7 +9,9 @@
 
 #include <ATen/AccumulateType.h>
 #include <torch/library.h>
-#include <ATen/functorch/BatchRulesHelper.h>
+// #include <ATen/functorch/BatchRulesHelper.h>
+#include <ATen/ATen.h>
+#include <ATen/Operators.h>
 #include <c10/cuda/CUDAStream.h>
 #include <ATen/Dispatch.h>
 

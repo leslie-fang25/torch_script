@@ -87,5 +87,6 @@ def extended_attention(q, k, v, attn_mask=None, dropout_p=0.0, is_causal=False, 
 lib = torch.library.Library("torch_cuda_extension", "FRAGMENT")
 lib.define("extended_add(Tensor a, Tensor b) -> Tensor")  # implement by cuda
 lib.define("extended_gemm(Tensor a, Tensor b, str epilogue, bool transpose_B, ScalarType? dtype=None, int api_level=0) -> Tensor")  # implement by cutlass
+lib.define("extended_gemm_sm90(Tensor a, Tensor b, str epilogue, bool transpose_B, ScalarType? dtype=None, int api_level=0) -> Tensor")  # implement by cutlass
 lib.define("extended_attention(Tensor q, Tensor k, Tensor v, Tensor? attn_mask=None, float dropout_p=0.0, bool is_causal=False, *, float? scale=None, int api_level=0) -> Tensor")
 lib.define("extended_add_one_tma(Tensor a, int api_level=0) -> Tensor")  # implement by cuda

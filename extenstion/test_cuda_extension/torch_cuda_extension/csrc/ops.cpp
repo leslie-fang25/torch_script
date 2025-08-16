@@ -37,6 +37,26 @@ Tensor extended_gemm(
   return out;
 }
 
+Tensor extended_gemm_sm90(
+  Tensor a,
+  Tensor b,
+  std::string_view epilogue,
+  bool transpose_B,
+  std::optional<ScalarType> output_dtype,
+  int64_t api_level = 0) {
+  // api_level: 0 - GEMM API; 1 - collective API; 2 - Cute API;
+  if (!output_dtype.has_value()) {
+    output_dtype = a.scalar_type();
+  }
+  Tensor out = at::empty({a.size(0), b.size(1)}, a.options().dtype(output_dtype));
+  if (transpose_B) {
+    // B is N * K
+    out = at::empty({a.size(0), b.size(0)}, a.options().dtype(output_dtype));
+  }
+  extended_gemm_sm90_kernel(a, b, out, epilogue, transpose_B, api_level);
+  return out;
+}
+
 Tensor extended_attention(
   Tensor q,
   Tensor k,
@@ -75,6 +95,7 @@ Tensor extended_add_one_tma(
 TORCH_LIBRARY_IMPL(torch_cuda_extension, CUDA, m) {
   m.impl(TORCH_SELECTIVE_NAME("extended_add"), TORCH_FN(extended_add));
   m.impl(TORCH_SELECTIVE_NAME("extended_gemm"), TORCH_FN(extended_gemm));
+  m.impl(TORCH_SELECTIVE_NAME("extended_gemm_sm90"), TORCH_FN(extended_gemm_sm90));
   m.impl(TORCH_SELECTIVE_NAME("extended_attention"), TORCH_FN(extended_attention));
   m.impl(TORCH_SELECTIVE_NAME("extended_add_one_tma"), TORCH_FN(extended_add_one_tma));
 }

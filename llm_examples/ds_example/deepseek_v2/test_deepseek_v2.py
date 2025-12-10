@@ -19,8 +19,8 @@ def run_release():
             torch_dtype=torch.bfloat16,
             _attn_implementation="eager",).to("cuda")
 
-        # input_text = "dfasd #write a quick sort algorithm in C++ ??"
-        input_text = "where is me and you and him?"
+        input_text = "dfasd #write a quick sort algorithm in C++ ??"
+        # input_text = "where is me and you and him?"
         inputs = tokenizer(input_text, return_tensors="pt").to(model.device)
 
         # model.forward = torch.compile(model.forward)
@@ -67,8 +67,8 @@ def run_debug():
             torch_dtype=torch.bfloat16,
             _attn_implementation="eager",).to("cuda")
 
-        # input_text = "dfasd #write a quick sort algorithm in C++ ??"
-        input_text = "where is me and you and him?"
+        input_text = "dfasd #write a quick sort algorithm in C++ ??"
+        # input_text = "where is me and you and him?"
         inputs = tokenizer(input_text, return_tensors="pt").to(model.device)
 
 
@@ -76,5 +76,5 @@ def run_debug():
         print(tokenizer.decode(outputs[0], skip_special_tokens=True))
 
 if __name__ == "__main__":
-    # run_release()
-    run_debug()
+    run_release()
+    # run_debug()

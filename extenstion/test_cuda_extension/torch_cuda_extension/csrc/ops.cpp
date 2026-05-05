@@ -1,6 +1,7 @@
 #include <ATen/AccumulateType.h>
 #include <torch/library.h>
 #include <ATen/functorch/BatchRulesHelper.h>
+#include <cuda_runtime.h>
 #include "kernel/cuda/extended_add.h"
 #include "kernel/cuda/extended_gemm.h"
 #include "kernel/cuda/extended_attention.h"
@@ -55,6 +56,11 @@ Tensor extended_attention(
 Tensor extended_add_one_tma(
   Tensor input,
   int64_t api_level = 0) {
+  cudaDeviceProp props;
+  cudaGetDeviceProperties(&props, input.device().index());
+  TORCH_CHECK(props.major >= 9,
+      "extended_add_one_tma requires Hopper (sm90+) for TMA support, "
+      "current device is sm", props.major, props.minor);
   Tensor output = at::empty_like(input);
   if (api_level == 0) {
     // 1D CUDA

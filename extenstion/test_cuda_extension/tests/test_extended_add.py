@@ -3,6 +3,7 @@ import torch_cuda_extension
 import numpy as np
 import random
 import itertools
+import pytest
 
 local_seed = 2025
 
@@ -33,6 +34,10 @@ def test_extended_gemm():
     print("torch.allclose(res, ref_res) is: {}".format(accuracy_check), flush=True)
     assert accuracy_check, "accuracy failed to check"
 
+@pytest.mark.skipif(
+    torch.cuda.get_device_capability()[0] < 9,
+    reason="Collective API requires Hopper (sm90+)"
+)
 def test_extended_gemm_collective():
     # for epilogue in ["none", "relu"]:
     for epilogue in ["none",]:
@@ -48,7 +53,7 @@ def test_extended_gemm_collective():
         res = torch.ops.torch_cuda_extension.extended_gemm(a, b, epilogue, transpose_B, api_level=1)
         accuracy_check = torch.allclose(res, ref_res, atol=1e-2, rtol=1e-1)
         print("torch.allclose(res, ref_res) is: {}".format(accuracy_check), flush=True)
-        # torch.testing.assert_allclose(res, ref_res, atol=1e-2, rtol=1e-1)
+        # torch.testing.assert_close(res, ref_res, atol=1e-2, rtol=1e-1)
         assert accuracy_check, "accuracy failed to check"
     print("---- Done test_extended_gemm_cute ----", flush=True)
 
@@ -66,7 +71,7 @@ def test_extended_gemm_cute():
         res = torch.ops.torch_cuda_extension.extended_gemm(a, b, epilogue, transpose_B, api_level=2)
         accuracy_check = torch.allclose(res, ref_res, atol=1e-2, rtol=1e-1)
         print("torch.allclose(res, ref_res) is: {}".format(accuracy_check), flush=True)
-        # torch.testing.assert_allclose(res, ref_res, atol=1e-2, rtol=1e-1)
+        # torch.testing.assert_close(res, ref_res, atol=1e-2, rtol=1e-1)
         assert accuracy_check, "accuracy failed to check"
     print("---- Done test_extended_gemm_cute ----", flush=True)
 
@@ -85,7 +90,7 @@ def test_extended_gemm_cute_float():
         res = torch.ops.torch_cuda_extension.extended_gemm(a, b, epilogue, transpose_B, torch.float32, api_level=2)
         accuracy_check = torch.allclose(res, ref_res, atol=1e-2, rtol=1e-1)
         print("torch.allclose(res, ref_res) is: {}".format(accuracy_check), flush=True)
-        # torch.testing.assert_allclose(res, ref_res, atol=1e-2, rtol=1e-1)
+        # torch.testing.assert_close(res, ref_res, atol=1e-2, rtol=1e-1)
         assert accuracy_check, "accuracy failed to check"
     print("---- Done test_extended_gemm_float ----", flush=True)
 
@@ -120,7 +125,7 @@ def test_extended_attention():
             is_causal = False
             attn_mask = torch.randn(q_size[2], kv_size[2]).le(torch.zeros(q_size[2], kv_size[2])).to(device=query.device)
 
-        with torch.backends.cuda.sdp_kernel(enable_math=False), torch.no_grad():
+        with torch.no_grad():
             ref_res = torch.nn.functional.scaled_dot_product_attention(
                 query,
                 key,
@@ -146,7 +151,7 @@ def test_extended_attention():
             accuracy_check = torch.allclose(res.to(device="cpu"), ref_res.to(device="cpu"), atol=1e-2, rtol=1e-1)
             # print(ref_res.to(device="cpu"), flush=True)
             # print(res.to(device="cpu"), flush=True)
-            torch.testing.assert_allclose(res.to(device="cpu"), ref_res.to(device="cpu"), atol=1e-2, rtol=1e-1)
+            torch.testing.assert_close(res.to(device="cpu"), ref_res.to(device="cpu"), atol=1e-2, rtol=1e-1)
             print("torch.allclose(res, ref_res) is: {}".format(accuracy_check), flush=True)
             assert accuracy_check, "accuracy failed to check"
     print("---- Done test_extended_attention ----", flush=True)
@@ -180,7 +185,7 @@ def test_extended_attention_cute():
             is_causal = False
             attn_mask = torch.randn(q_size[2], kv_size[2]).le(torch.zeros(q_size[2], kv_size[2])).to(device=query.device)
 
-        with torch.backends.cuda.sdp_kernel(enable_math=False), torch.no_grad():
+        with torch.no_grad():
             ref_res = torch.nn.functional.scaled_dot_product_attention(
                 query,
                 key,
@@ -206,11 +211,15 @@ def test_extended_attention_cute():
             accuracy_check = torch.allclose(res.to(device="cpu"), ref_res.to(device="cpu"), atol=1e-2, rtol=1e-1)
             # print(ref_res.to(device="cpu"), flush=True)
             # print(res.to(device="cpu"), flush=True)
-            torch.testing.assert_allclose(res.to(device="cpu"), ref_res.to(device="cpu"), atol=1e-2, rtol=1e-1)
+            torch.testing.assert_close(res.to(device="cpu"), ref_res.to(device="cpu"), atol=1e-2, rtol=1e-1)
             print("torch.allclose(res, ref_res) is: {}".format(accuracy_check), flush=True)
             assert accuracy_check, "accuracy failed to check"
     print("---- Done test_extended_attention ----", flush=True)
 
+@pytest.mark.skipif(
+    torch.cuda.get_device_capability()[0] < 9,
+    reason="TMA requires Hopper (sm90+)"
+)
 def test_extended_add_one_tma():
     dtype = torch.int32
     # q_size = [2048, 2048]
@@ -230,27 +239,11 @@ def test_extended_add_one_tma():
         # print(input.to(device="cpu"), flush=True)
         # print(res.to(device="cpu"), flush=True)
         
-        torch.testing.assert_allclose(res.to(device="cpu"), ref_res.to(device="cpu"), atol=1e-2, rtol=1e-1)
+        torch.testing.assert_close(res.to(device="cpu"), ref_res.to(device="cpu"), atol=1e-2, rtol=1e-1)
         accuracy_check = torch.allclose(res.to(device="cpu"), ref_res.to(device="cpu"), atol=1e-2, rtol=1e-1)
         print("torch.allclose(res, ref_res) is: {}".format(accuracy_check), flush=True)
         assert accuracy_check, "accuracy failed to check"
         print("---- Done test_extended_add_one_tma ----", flush=True)
 
 if __name__ == "__main__":
-    # TODO<leslie> support pytest
-    test_extended_add()
-
-    # Highest level API
-    test_extended_gemm()
-
-    # Test Collective API
-    # test_extended_gemm_collective()
-
-    # Test Cute API
-    test_extended_gemm_cute()
-    test_extended_gemm_cute_float()
-
-    # Test Attention
-    test_extended_attention()
-    test_extended_attention_cute()
-    test_extended_add_one_tma()
+    pytest.main([__file__, "-v"])

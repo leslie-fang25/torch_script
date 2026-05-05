@@ -35,6 +35,20 @@ class GemmPipelineSM80:
         compiled(mA, mB, mC)
     """
 
+    # relu is fused into the epilogue via a Constexpr lambda; run_gemm_pipeline
+    # passes ep_op to cute.compile() and does NOT call relu_() after the kernel.
+    fused_epilogue = True
+
+    @classmethod
+    def build(cls, mA, mB, mC, ep_op, device):
+        """Compile the kernel for a given problem shape and return the compiled fn."""
+        return cute.compile(cls(), mA, mB, mC, ep_op)
+
+    @classmethod
+    def invoke(cls, compiled, mA, mB, mC, device):
+        """Execute a previously compiled kernel on the current CUDA stream."""
+        compiled(mA, mB, mC)
+
     def __init__(self, atom_layout_mnk=(2, 2, 1), num_stages=3):
         assert num_stages >= 3, "num_stages >= 3 required for wait_group(stages-2)=1"
 
@@ -301,11 +315,14 @@ class GemmPipelineSM80:
 # Public helper: compile once per process, then reuse
 # ─────────────────────────────────────────────────────────────────────────────
 
+from .gemm_pipeline_sm90 import GemmPipelineSM90  # noqa: E402
+
 _gemm_cache: dict = {}
 
 # Registry: sm_major → GemmClass (add new arch classes here)
 _ARCH_REGISTRY: dict = {
     8: GemmPipelineSM80,  # Ampere (sm80, sm86, sm87)
+    9: GemmPipelineSM90,  # Hopper (sm90)
 }
 
 
@@ -328,7 +345,7 @@ def run_gemm_pipeline(
     epilogue: str = "none",
 ) -> "torch.Tensor":
     """
-    Compute C = A @ B.T using the 3-stage pipeline GEMM.
+    Compute C = A @ B.T using the arch-appropriate pipeline GEMM.
 
     Args:
         a:        (M, K) fp16 CUDA tensor, row-major
@@ -358,14 +375,23 @@ def run_gemm_pipeline(
     mB = from_dlpack(b, assumed_align=16)
     mC = from_dlpack(c, assumed_align=16)
 
-    if use_relu:
-        ep_op = lambda x: cute.where(x > 0, x, cute.full_like(x, 0))
+    # SM80: relu fused as Constexpr epilogue_op; SM90: relu applied post-kernel
+    if gemm_cls.fused_epilogue:
+        ep_op = (
+            (lambda x: cute.where(x > 0, x, cute.full_like(x, 0)))
+            if use_relu
+            else (lambda x: x)
+        )
     else:
-        ep_op = lambda x: x
+        ep_op = None
 
     key = (gemm_cls, M, N, K, use_relu)
     if key not in _gemm_cache:
-        _gemm_cache[key] = cute.compile(gemm_cls(), mA, mB, mC, ep_op)
+        _gemm_cache[key] = gemm_cls.build(mA, mB, mC, ep_op, a.device)
 
-    _gemm_cache[key](mA, mB, mC)
+    gemm_cls.invoke(_gemm_cache[key], mA, mB, mC, a.device)
+
+    if not gemm_cls.fused_epilogue and use_relu:
+        c.relu_()
+
     return c

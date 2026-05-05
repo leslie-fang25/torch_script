@@ -1,3 +1,4 @@
 torch==2.11.0+cu130
 numpy==2.4.2
 pytest==9.0.3
+nvidia-cutlass-dsl==4.4.2

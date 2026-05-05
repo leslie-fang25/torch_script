@@ -245,5 +245,49 @@ def test_extended_add_one_tma():
         assert accuracy_check, "accuracy failed to check"
         print("---- Done test_extended_add_one_tma ----", flush=True)
 
+def test_extended_gemm_cutedsl_pipeline():
+    """
+    CuteDSL 3-stage K-pipeline GEMM (SM80).
+
+    Input convention (same as api_level=2 / test_extended_gemm_cute):
+      a: (M, K) fp16  row-major
+      b: (N, K) fp16  row-major  ← B is transposed before passing
+    Output: (M, N) fp32
+
+    Tile constraints: M, N multiples of 128; K multiple of 32.
+    """
+    shapes = [
+        # (M, K, N)
+        (128, 32,  128),   # minimal tile
+        (256, 64,  256),   # 2×2 tiles
+        (512, 128, 256),   # rectangular
+    ]
+    for epilogue in ["none", "relu"]:
+        for M, K, N in shapes:
+            a = torch.randn(M, K, dtype=torch.float16, device="cuda")
+            b = torch.randn(N, K, dtype=torch.float16, device="cuda")
+
+            # Reference: A @ B.T in fp32
+            ref = torch.mm(a.float(), b.float().t())
+            if epilogue == "relu":
+                ref = torch.nn.functional.relu(ref)
+
+            res = torch.ops.torch_cuda_extension.extended_gemm_cutedsl(a, b, epilogue)
+
+            assert res.shape == (M, N), f"shape mismatch: {res.shape}"
+            assert res.dtype == torch.float32, f"dtype mismatch: {res.dtype}"
+            accuracy_ok = torch.allclose(res, ref, atol=1e-2, rtol=1e-1)
+            print(
+                f"[cutedsl pipeline] M={M} N={N} K={K} epilogue={epilogue} "
+                f"allclose={accuracy_ok}",
+                flush=True,
+            )
+            assert accuracy_ok, (
+                f"accuracy failed for shape ({M},{K},{N}) epilogue={epilogue}"
+            )
+
+    print("---- Done test_extended_gemm_cutedsl_pipeline ----", flush=True)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -89,3 +89,17 @@ lib.define("extended_add(Tensor a, Tensor b) -> Tensor")  # implement by cuda
 lib.define("extended_gemm(Tensor a, Tensor b, str epilogue, bool transpose_B, ScalarType? dtype=None, int api_level=0) -> Tensor")  # implement by cutlass
 lib.define("extended_attention(Tensor q, Tensor k, Tensor v, Tensor? attn_mask=None, float dropout_p=0.0, bool is_causal=False, *, float? scale=None, int api_level=0) -> Tensor")
 lib.define("extended_add_one_tma(Tensor a, int api_level=0) -> Tensor")  # implement by cuda
+# CuteDSL 3-stage pipeline GEMM: A(M,K) fp16 × B(N,K) fp16 → C(M,N) fp32
+# B must be in N×K layout (transposed by caller), same convention as api_level=2
+lib.define("extended_gemm_cutedsl(Tensor a, Tensor b, str epilogue='none') -> Tensor")
+
+
+@torch.library.impl("torch_cuda_extension::extended_gemm_cutedsl", "CUDA")
+def _extended_gemm_cutedsl_cuda(a, b, epilogue="none"):
+    from .cutedsl_ops.gemm_pipeline import run_gemm_pipeline
+    return run_gemm_pipeline(a, b, epilogue)
+
+
+@torch.library.impl("torch_cuda_extension::extended_gemm_cutedsl", "CPU")
+def _extended_gemm_cutedsl_cpu(a, b, epilogue="none"):
+    raise NotImplementedError("extended_gemm_cutedsl is CUDA-only")

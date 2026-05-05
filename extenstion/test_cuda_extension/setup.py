@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages, Extension, Command
 import glob
 import os
-import pybind11
+import sys
 import shutil
 from pathlib import Path
 
@@ -47,7 +47,7 @@ def get_extensions():
 
     extensions_dir = "torch_cuda_extension/csrc/"
     sources = list(glob.glob(os.path.join(extensions_dir, "*.cpp"), recursive=True))
-    include_dirs = []
+    include_dirs = [os.path.join(sys.prefix, "include")]
     if CUDA_HOME:
         sources += list(glob.glob(os.path.join(extensions_dir, "kernel/cuda/*.cu"), recursive=True))
         include_dirs += [os.path.join(Path(extensions_dir).resolve(), "include/cutlass/include")]

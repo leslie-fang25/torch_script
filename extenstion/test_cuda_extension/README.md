@@ -8,7 +8,7 @@ set CURRENT_DIR=$(pwd)
 cd torch_cuda_extension/csrc/include && git clone https://github.com/NVIDIA/cutlass.git && cd $CURRENT_DIR
 
 * Build the package
-python setup.py develop
+pip install --no-build-isolation -e .
 ```
 
 ### Verified

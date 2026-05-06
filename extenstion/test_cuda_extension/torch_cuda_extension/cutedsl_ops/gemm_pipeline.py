@@ -316,13 +316,15 @@ class GemmPipelineSM80:
 # ─────────────────────────────────────────────────────────────────────────────
 
 from .gemm_pipeline_sm90 import GemmPipelineSM90  # noqa: E402
+from .gemm_pipeline_sm100 import GemmPipelineSM100  # noqa: E402
 
 _gemm_cache: dict = {}
 
 # Registry: sm_major → GemmClass (add new arch classes here)
 _ARCH_REGISTRY: dict = {
-    8: GemmPipelineSM80,  # Ampere (sm80, sm86, sm87)
-    9: GemmPipelineSM90,  # Hopper (sm90)
+    8:  GemmPipelineSM80,   # Ampere   (sm80, sm86, sm87)
+    9:  GemmPipelineSM90,   # Hopper   (sm90)
+    10: GemmPipelineSM100,  # Blackwell (sm100, sm103)
 }
 
 
@@ -370,10 +372,15 @@ def run_gemm_pipeline(
 
     c = torch.empty(M, N, dtype=torch.float32, device=a.device)
 
-    # Convert to CuTe tensors (assumed 16-byte aligned for 128-bit cp.async)
-    mA = from_dlpack(a, assumed_align=16)
-    mB = from_dlpack(b, assumed_align=16)
-    mC = from_dlpack(c, assumed_align=16)
+    # Convert to CuTe tensors. Default is a straight 2-D from_dlpack; arches
+    # that need a different layout (e.g. SM100 needs batched 3-D for
+    # DenseGemmKernel) override make_cute_tensors.
+    if hasattr(gemm_cls, "make_cute_tensors"):
+        mA, mB, mC = gemm_cls.make_cute_tensors(a, b, c)
+    else:
+        mA = from_dlpack(a, assumed_align=16)
+        mB = from_dlpack(b, assumed_align=16)
+        mC = from_dlpack(c, assumed_align=16)
 
     # SM80: relu fused as Constexpr epilogue_op; SM90: relu applied post-kernel
     if gemm_cls.fused_epilogue:

@@ -92,6 +92,10 @@ lib.define("extended_add_one_tma(Tensor a, int api_level=0) -> Tensor")  # imple
 # CuteDSL 3-stage pipeline GEMM: A(M,K) fp16 × B(N,K) fp16 → C(M,N) fp32
 # B must be in N×K layout (transposed by caller), same convention as api_level=2
 lib.define("extended_gemm_cutedsl(Tensor a, Tensor b, str epilogue='none') -> Tensor")
+# CuteDSL 1D TMA copy (SM90+): gmem → smem → gmem, value-identical to input
+lib.define("tma_copy_1d(Tensor x, int tile_size=256) -> Tensor")
+# CuteDSL 2D TMA copy (SM90+): gmem → smem → gmem, value-identical to input
+lib.define("tma_copy_2d(Tensor x, int[2] tile_shape=[64, 64]) -> Tensor")
 
 
 @torch.library.impl("torch_cuda_extension::extended_gemm_cutedsl", "CUDA")
@@ -103,3 +107,25 @@ def _extended_gemm_cutedsl_cuda(a, b, epilogue="none"):
 @torch.library.impl("torch_cuda_extension::extended_gemm_cutedsl", "CPU")
 def _extended_gemm_cutedsl_cpu(a, b, epilogue="none"):
     raise NotImplementedError("extended_gemm_cutedsl is CUDA-only")
+
+
+@torch.library.impl("torch_cuda_extension::tma_copy_1d", "CUDA")
+def _tma_copy_1d_cuda(x, tile_size=256):
+    from .cutedsl_ops.tma_copy_1d import run_tma_copy_1d
+    return run_tma_copy_1d(x, tile_size)
+
+
+@torch.library.impl("torch_cuda_extension::tma_copy_1d", "CPU")
+def _tma_copy_1d_cpu(x, tile_size=256):
+    raise NotImplementedError("tma_copy_1d is CUDA-only")
+
+
+@torch.library.impl("torch_cuda_extension::tma_copy_2d", "CUDA")
+def _tma_copy_2d_cuda(x, tile_shape=(64, 64)):
+    from .cutedsl_ops.tma_copy_2d import run_tma_copy_2d
+    return run_tma_copy_2d(x, tuple(tile_shape))
+
+
+@torch.library.impl("torch_cuda_extension::tma_copy_2d", "CPU")
+def _tma_copy_2d_cpu(x, tile_shape=(64, 64)):
+    raise NotImplementedError("tma_copy_2d is CUDA-only")

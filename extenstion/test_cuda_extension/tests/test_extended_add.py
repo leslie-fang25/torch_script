@@ -242,6 +242,49 @@ def test_extended_add_one_tma():
         assert accuracy_check, "accuracy failed to check"
         print("---- Done test_extended_add_one_tma ----", flush=True)
 
+@pytest.mark.skipif(
+    torch.cuda.get_device_capability()[0] < 9,
+    reason="TMA requires Hopper (sm90+)"
+)
+def test_tma_copy_1d():
+    cases = [
+        # (N, tile_size)
+        (256,  256),    # single tile
+        (1024, 256),    # 4 tiles
+        (4096, 512),    # 8 tiles, larger tile
+    ]
+    for N, tile_size in cases:
+        x = torch.randn(N, dtype=torch.float32, device="cuda")
+        res = torch.ops.torch_cuda_extension.tma_copy_1d(x, tile_size)
+        torch.testing.assert_close(res, x, atol=0, rtol=0)
+        assert res.shape == x.shape and res.dtype == x.dtype
+        print(f"[tma_copy_1d] N={N} tile_size={tile_size} ok", flush=True)
+    print("---- Done test_tma_copy_1d ----", flush=True)
+
+
+@pytest.mark.skipif(
+    torch.cuda.get_device_capability()[0] < 9,
+    reason="TMA requires Hopper (sm90+)"
+)
+def test_tma_copy_2d():
+    shapes = [
+        # (M, N, tile_m, tile_n)
+        (64, 64, 64, 64),       # single tile
+        (128, 256, 64, 64),     # 2x4 tiles
+        (256, 128, 128, 64),    # rectangular tile
+    ]
+    for M, N, tile_m, tile_n in shapes:
+        x = torch.randn(M, N, dtype=torch.float32, device="cuda")
+        res = torch.ops.torch_cuda_extension.tma_copy_2d(x, [tile_m, tile_n])
+        torch.testing.assert_close(res, x, atol=0, rtol=0)
+        assert res.shape == x.shape and res.dtype == x.dtype
+        print(
+            f"[tma_copy_2d] M={M} N={N} tile=({tile_m},{tile_n}) ok",
+            flush=True,
+        )
+    print("---- Done test_tma_copy_2d ----", flush=True)
+
+
 def test_extended_gemm_cutedsl_pipeline():
     """
     CuteDSL 3-stage K-pipeline GEMM (SM80).
